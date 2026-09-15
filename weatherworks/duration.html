@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공사기간 산정 총괄 · WeatherWorks</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app-shell">
+  <aside id="sidebar"></aside>
+  <div class="main">
+    <header id="topbar"></header>
+    <main id="page-content">
+      <div class="page-head">
+        <h2>공사기간 산정 · 총괄</h2>
+        <div class="desc">작업일수 산정과 비작업일수 산정 결과를 합산해 예상 소요기간을 계산합니다.</div>
+      </div>
+
+      <div class="grid grid-4">
+        <div class="stat-card"><div class="label">계약 공기</div><div class="value" id="v-contract">-</div></div>
+        <div class="stat-card"><div class="label">필요 작업일수</div><div class="value" id="v-workdays">-</div></div>
+        <div class="stat-card"><div class="label">예상 비작업일수</div><div class="value" id="v-nonworking">-</div></div>
+        <div class="stat-card"><div class="label">예상 소요 공기</div><div class="value" id="v-estimated">-</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Timeline</h3></div>
+        <div id="timeline"></div>
+        <div class="row gap-12" style="margin-top:10px; font-size:12px;">
+          <span class="row gap-8"><span style="width:12px;height:12px;background:var(--primary);border-radius:2px;display:inline-block;"></span>계약 공기</span>
+          <span class="row gap-8"><span style="width:12px;height:12px;background:var(--amber);border-radius:2px;display:inline-block;"></span>산정 소요기간</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>판정</h3></div>
+        <div id="verdict"></div>
+      </div>
+
+      <div class="row gap-8" style="margin-top:6px; margin-bottom:24px;">
+        <a class="btn" href="duration-workdays.html">작업일수 산정 상세 →</a>
+        <a class="btn" href="duration-weather.html">비작업일수 산정 상세 →</a>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head flex-between">
+          <h3>전체 현장 요약</h3>
+          <button class="btn btn-sm" onclick="exportSummary()">CSV 내보내기</button>
+        </div>
+        <table>
+          <thead><tr><th>현장명</th><th class="num">총 일수</th><th class="num">작업가능일</th><th class="num">비작업일</th><th class="num">가능률</th></tr></thead>
+          <tbody id="summary-rows"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/db.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/util.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/sw-catalog.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderTopbar('공사기간 산정 총괄', {showProjectSelect:true});
+  const db = loadDB();
+  const pid = getCurrentProjectId(db);
+  const p = db.projects.find(x=>x.id===pid);
+  if(!p) return;
+
+  const list = db.quantities.filter(q=>q.projectId===pid);
+  const requiredWorkDays = list.reduce((s,q)=> s + (q.dailyOutput ? Math.ceil(q.quantity/q.dailyOutput) : 0), 0);
+  const est = estimateDuration(p, db, requiredWorkDays || undefined);
+
+  document.getElementById('v-contract').innerHTML = (p.contractDays||daysBetween(p.startDate,p.endDate)) + '<small> 일</small>';
+  document.getElementById('v-workdays').innerHTML = est.requiredWorkDays + '<small> 일</small>';
+  document.getElementById('v-nonworking').innerHTML = est.nonWorkingDays + '<small> 일</small>';
+  document.getElementById('v-estimated').innerHTML = est.estimatedCalendarDays + '<small> 일</small>';
+
+  const contractDays = p.contractDays || daysBetween(p.startDate,p.endDate);
+  const max = Math.max(contractDays, est.estimatedCalendarDays, 1);
+  document.getElementById('timeline').innerHTML = `
+    <div style="margin-bottom:8px;">
+      <div class="muted" style="font-size:11.5px; margin-bottom:3px;">계약 공기 (${contractDays}일)</div>
+      <div style="background:var(--surface-sunken); border-radius:4px; height:20px;">
+        <div style="width:${contractDays/max*100}%; background:var(--primary); height:20px; border-radius:4px;"></div>
+      </div>
+    </div>
+    <div>
+      <div class="muted" style="font-size:11.5px; margin-bottom:3px;">산정 소요기간 (${est.estimatedCalendarDays}일)</div>
+      <div style="background:var(--surface-sunken); border-radius:4px; height:20px;">
+        <div style="width:${est.estimatedCalendarDays/max*100}%; background:var(--amber); height:20px; border-radius:4px;"></div>
+      </div>
+    </div>`;
+
+  const diff = contractDays - est.estimatedCalendarDays;
+  document.getElementById('verdict').innerHTML = diff >= 0
+    ? `<div class="notice" style="background:var(--green-tint); border-color:#BFE0CC; color:var(--green);">산정 소요기간이 계약 공기 이내입니다 (여유 ${diff}일).</div>`
+    : `<div class="notice" style="background:var(--red-tint); border-color:#EFC3B8; color:var(--red);">산정 소요기간이 계약 공기를 ${Math.abs(diff)}일 초과합니다. 공기 연장 검토 또는 비작업일수 저감 방안(공법 변경, 임시 가설 등)이 필요합니다.</div>`;
+
+  renderSummary();
+});
+
+let summaryCache = [];
+
+function renderSummary(){
+  const db = loadDB();
+  summaryCache = db.projects.map(p=>{
+    const days = computeDailyStatus(p, db);
+    const s = summarizeStatus(days);
+    return {name:p.name, total:s.total, working:s.working, nonWorking:s.nonWorking, workableRate:s.workableRate};
+  });
+  document.getElementById('summary-rows').innerHTML = summaryCache.map(s=>`<tr>
+    <td>${s.name}</td>
+    <td class="num mono">${s.total}</td>
+    <td class="num mono">${s.working}</td>
+    <td class="num mono">${s.nonWorking}</td>
+    <td class="num mono">${fmtNum(s.workableRate*100,1)}%</td>
+  </tr>`).join('') || '<tr><td colspan="5"><div class="empty">등록된 현장이 없습니다.</div></td></tr>';
+}
+
+function exportSummary(){
+  const headers = ['현장명','총 일수','작업가능일','비작업일','가능률(%)'];
+  const rows = summaryCache.map(s=>({'현장명':s.name,'총 일수':s.total,'작업가능일':s.working,'비작업일':s.nonWorking,'가능률(%)':fmtNum(s.workableRate*100,1)}));
+  downloadText('전체현장_요약.csv', toCSV(headers, rows), 'text/csv;charset=utf-8');
+}
+</script>
+</body>
+</html>
