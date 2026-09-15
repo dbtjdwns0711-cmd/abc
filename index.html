@@ -2,13 +2,86 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=weatherworks/index.html">
-  <title>WeatherWorks 이동 중...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현장 관리 · WeatherWorks</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <p>WeatherWorks 대시보드로 자동 이동 중입니다. 잠시만 기다려 주세요...</p>
-  <script>
-    window.location.replace("weatherworks/index.html");
-  </script>
+  <div class="app-layout">
+    <!-- 좌측 고정 사이드바 -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-sub">WEATHERWORKS</span>
+        <h1 class="sidebar-title">WeatherWorks</h1>
+        <p class="sidebar-desc">건설공사 비작업일수 · 공사기간 산정</p>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="index.html" class="sidebar-link active">종합 현황</a>
+        <a href="admin.html" class="sidebar-link">현장 관리</a>
+        <a href="project-detail.html" class="sidebar-link">현장별 상세 분석</a>
+        <a href="data.html" class="sidebar-link">기상 데이터 조회</a>
+        <a href="quantity.html" class="sidebar-link">공사 물량·생산성 산정</a>
+        <a href="stations.html" class="sidebar-link">구간별 관측지점</a>
+
+        <div class="sidebar-section-title">공사기간 산정</div>
+        <a href="duration-workdays.html" class="sidebar-link">비작업일수 산정</a>
+        <a href="duration.html" class="sidebar-link">산정근거 검토</a>
+        <a href="duration-weather.html" class="sidebar-link">작업일수 산정</a>
+      </nav>
+    </aside>
+
+    <!-- 우측 본문 영역 -->
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <span class="top-bar-title">현장 관리</span>
+        </div>
+        <div class="top-bar-right">
+          <select class="form-select project-selector">
+            <option>OO지구 공동주택 신축공사</option>
+          </select>
+          <button class="btn btn-primary" onclick="alert('현장 추가 기능 준비 중')">+ 현장 추가</button>
+        </div>
+      </header>
+
+      <div class="content-container">
+        <div class="page-title-area">
+          <h2 class="page-title">현장 관리</h2>
+          <p class="page-desc">현장을 등록하고 기간·관측지점·적용 기상 기준을 설정합니다.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>현장명</th>
+                  <th>위치</th>
+                  <th>기간</th>
+                  <th>관측지점</th>
+                  <th>적용 기준</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>OO지구 공동주택 신축공사</strong></td>
+                  <td>충남 아산시 배방읍</td>
+                  <td>2024-03-01 ~ 2026-08-31</td>
+                  <td>아산(637) / 천안(232)</td>
+                  <td><span class="badge badge-info">코랩 정밀 분석 모델</span></td>
+                  <td><span class="badge badge-success">진행중</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/sw-catalog.js"></script>
+  <script src="js/calc.js"></script>
 </body>
 </html>
