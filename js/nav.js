@@ -1,31 +1,49 @@
 /*---------------------------------------------------------
-  nav.js - 공통 상단 네비게이션 바 렌더링
+  nav.js - 사이드바 및 상단 헤더 렌더링
 ---------------------------------------------------------*/
 document.addEventListener('DOMContentLoaded', () => {
-  const navContainer = document.getElementById('nav-container');
-  if (!navContainer) return;
+  const sidebar = document.querySelector('.sidebar') || document.getElementById('sidebar');
+  const currentFile = window.location.pathname.split('/').pop() || 'index.html';
 
-  const currentPath = window.location.pathname;
+  const menuItems = [
+    { name: '종합 현황', href: 'index.html' },
+    { name: '현장 관리', href: 'admin.html' },
+    { name: '현장별 상세 분석', href: 'project-detail.html' },
+    { name: '기상 데이터 조회', href: 'data.html' },
+    { name: '공사 물량·생산성 산정', href: 'quantity.html' },
+    { name: '구간별 관측지점', href: 'stations.html' },
+    { header: '공사기간 산정' },
+    { name: '비작업일수 산정', href: 'duration-workdays.html' },
+    { name: '산정근거 검토', href: 'duration.html' },
+    { name: '작업일수 산정', href: 'schedule.html' }
+  ];
 
-  const navHtml = `
-    <header style="background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 0 24px;">
-      <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 60px;">
-        <div style="display: flex; align-items: center; gap: 24px;">
-          <a href="index.html" style="font-weight: 700; font-size: 18px; color: #1e293b; text-decoration: none; display: flex; align-items: center; gap: 8px;">
-            <span>WeatherWorks</span>
-          </a>
-          <nav style="display: flex; gap: 16px; font-size: 14px; font-weight: 500;">
-            <a href="duration.html" style="color: ${currentPath.includes('duration') ? '#2563eb' : '#64748b'}; text-decoration: none; padding: 6px 10px; border-radius: 4px;">공기 산정 기준</a>
-            <a href="data.html" style="color: ${currentPath.includes('data') ? '#2563eb' : '#64748b'}; text-decoration: none; padding: 6px 10px; border-radius: 4px;">기상 데이터</a>
-            <a href="stations.html" style="color: ${currentPath.includes('stations') ? '#2563eb' : '#64748b'}; text-decoration: none; padding: 6px 10px; border-radius: 4px;">관측소 목록</a>
-          </nav>
-        </div>
-        <div>
-          <span style="font-size: 12px; background: #eff6ff; color: #2563eb; padding: 4px 8px; border-radius: 4px; font-weight: 600;">코랩 정밀 분석 모델 v1.0</span>
-        </div>
-      </div>
-    </header>
+  let menuHtml = `
+    <div class="sidebar-brand" style="padding: 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+      <div style="font-size: 11px; color: #94a3b8; letter-spacing: 1px; margin-bottom: 4px;">WEATHERWORKS</div>
+      <div style="font-size: 18px; font-weight: 700; color: #ffffff;">WeatherWorks</div>
+      <div style="font-size: 11px; color: #64748b; margin-top: 4px;">건설공사 비작업일수 · 공사기간 산정</div>
+    </div>
+    <nav class="sidebar-menu" style="padding: 16px 0;">
   `;
 
-  navContainer.innerHTML = navHtml;
+  menuItems.forEach(item => {
+    if (item.header) {
+      menuHtml += `<div style="padding: 16px 20px 8px; font-size: 11px; color: #64748b; font-weight: 600;">${item.header}</div>`;
+    } else {
+      const isActive = currentFile === item.href;
+      const activeStyle = isActive ? 'background: #1e3a8a; color: #ffffff; font-weight: 600;' : 'color: #94a3b8;';
+      menuHtml += `
+        <a href="${item.href}" style="display: block; padding: 10px 20px; font-size: 13px; text-decoration: none; transition: 0.2s; ${activeStyle}">
+          ${item.name}
+        </a>
+      `;
+    }
+  });
+
+  menuHtml += `</nav>`;
+
+  if (sidebar) {
+    sidebar.innerHTML = menuHtml;
+  }
 });

@@ -5,110 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>공사기간 산정근거 검토 - WeatherWorks</title>
   <link rel="stylesheet" href="css/style.css">
-  <style>
-    .criteria-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 24px;
-      margin-top: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .criteria-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 16px;
-      font-size: 14px;
-    }
-    .criteria-table th, .criteria-table td {
-      border-bottom: 1px solid #edf2f7;
-      padding: 12px 14px;
-      text-align: left;
-    }
-    .criteria-table th {
-      background-color: #f8fafc;
-      color: #475569;
-      font-weight: 600;
-    }
-    .criteria-table td {
-      color: #334155;
-    }
-    .highlight {
-      font-weight: 600;
-      color: #0f172a;
-    }
-  </style>
 </head>
-<body>
-  <div id="nav-container"></div>
+<body style="margin: 0; display: flex; height: 100vh; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
 
-  <main class="container" style="max-width: 1100px; margin: 40px auto; padding: 0 20px;">
-    <section class="page-header" style="margin-bottom: 24px;">
-      <h1 style="font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">공사기간 산정근거 검토</h1>
-      <p style="color: #64748b; font-size: 14px; line-height: 1.5;">
-        기상청 시간대별 관측 데이터(10개년) 분석 기반의 기상 비작업일 산정 기준, 공휴일 목록 및 환산 알고리즘을 확인합니다.
-      </p>
-    </section>
+  <!-- 좌측 사이드바 -->
+  <aside id="sidebar" class="sidebar" style="width: 240px; min-width: 240px; background-color: #1a2e4c; height: 100vh; overflow-y: auto;"></aside>
 
-    <!-- 기상 조건별 작업불능 상세 판정 기준 카드 -->
-    <section class="criteria-card">
-      <h2 style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px;">
-        기상 조건별 작업불능 상세 판정 기준 (코랩 정밀 분석 모델)
-      </h2>
-      
-      <table class="criteria-table">
-        <thead>
-          <tr>
-            <th style="width: 15%;">구분</th>
-            <th style="width: 45%;">작업 불능 및 중지 판정 조건</th>
-            <th style="width: 20%;">적용 손실 시간</th>
-            <th style="width: 20%;">비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="highlight">기준 근무 시간</td>
-            <td>주간 07:00 ~ 17:00 (1일 총 10시간 가동 구간 대상 분석)</td>
-            <td>-</td>
-            <td>야간 시간대 제외</td>
-          </tr>
-          <tr>
-            <td class="highlight">지속성 강우</td>
-            <td>근무시간 중 <span class="highlight">2시간 연속 시간당 강수량 1.0mm 이상</span> 발생 시</td>
-            <td>오전(07~12시) 또는 오후(13~17시) <span class="highlight">반일 오프</span></td>
-            <td>현장 토공·골조 중지</td>
-          </tr>
-          <tr>
-            <td class="highlight">강풍</td>
-            <td>근무시간 중 순간/시간 풍속 <span class="highlight">15.0m/s 이상</span> 발생 시</td>
-            <td>해당 <span class="highlight">반일(오전/오후) 작업 중지</span></td>
-            <td>크레인·고소작업 제한</td>
-          </tr>
-          <tr>
-            <td class="highlight">혹서기 (폭염)</td>
-            <td>
-              • 일 최고 체감온도(Tw) <span class="highlight">35.0°C 이상</span>: 14시~17시 중지 (경량 손실)<br>
-              • 일 최고 체감온도(Tw) <span class="highlight">38.0°C 이상</span>: 당일 전일 작업 중지 (중증 손실)
-            </td>
-            <td>3~4시간 또는 전일 중지</td>
-            <td>여름철 습구체감온도 공식 적용</td>
-          </tr>
-          <tr>
-            <td class="highlight">혹한기 (한파)</td>
-            <td>당일 일 최저기온 <span class="highlight">-12.0°C 이하</span> 발생 시</td>
-            <td>당일 <span class="highlight">전일 작업 중지</span></td>
-            <td>콘크리트 동결·토공 중지</td>
-          </tr>
-          <tr>
-            <td class="highlight">폭설 (적설)</td>
-            <td>당일 일 최고 적설량 <span class="highlight">5.0cm 이상</span> 관측 시</td>
-            <td>당일 <span class="highlight">전일 작업 중지</span></td>
-            <td>제설 및 진입로 차단</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-  </main>
+  <!-- 우측 본문 영역 -->
+  <div style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+    <!-- 상단 헤더 -->
+    <header style="height: 56px; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 32px;">
+      <div style="font-size: 13px; font-weight: 600; color: #334155;">산정근거 검토</div>
+      <div>
+        <select style="font-size: 12px; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 4px; color: #334155; background: #fff;">
+          <option>OO지구 공동주택 신축공사</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <main style="padding: 32px; max-width: 1200px;">
+      <div style="margin-bottom: 24px;">
+        <h1 style="font-size: 20px; font-weight: 700; color: #0f172a; margin: 0 0 8px 0;">공사기간 산정근거 검토</h1>
+        <p style="margin: 0; color: #64748b; font-size: 13px; line-height: 1.5;">
+          기상청 시간대별 관측 데이터(10개년) 분석 기반의 기상 비작업일 산정 기준, 공휴일 목록 및 환산 알고리즘을 확인합니다.
+        </p>
+      </div>
+
+      <!-- 기상 조건별 작업불능 상세 판정 기준 카드 -->
+      <section style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+        <h2 style="font-size: 15px; font-weight: 700; color: #1e293b; margin: 0 0 16px 0;">
+          기상 조건별 작업불능 상세 판정 기준 (코랩 정밀 분석 모델)
+        </h2>
+        
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="border-bottom: 1px solid #e2e8f0; text-align: left; color: #64748b; font-size: 12px;">
+              <th style="padding: 10px 12px; width: 15%; font-weight: 600;">구분</th>
+              <th style="padding: 10px 12px; width: 45%; font-weight: 600;">작업 불능 및 중지 판정 조건</th>
+              <th style="padding: 10px 12px; width: 20%; font-weight: 600;">적용 손실 시간</th>
+              <th style="padding: 10px 12px; width: 20%; font-weight: 600;">비고</th>
+            </tr>
+          </thead>
+          <tbody style="color: #334155;">
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 12px; font-weight: 600;">기준 근무 시간</td>
+              <td style="padding: 12px;">주간 07:00 ~ 17:00 (1일 총 10시간 가동 구간 대상 분석)</td>
+              <td style="padding: 12px;">-</td>
+              <td style="padding: 12px; color: #64748b;">야간 시간대 제외</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 12px; font-weight: 600;">지속성 강우</td>
+              <td style="padding: 12px;">근무시간 중 <strong>2시간 연속 시간당 강수량 1.0mm 이상</strong> 발생 시</td>
+              <td style="padding: 12px;">오전(07~12시) 또는 오후(13~17시) <strong>반일 오프</strong></td>
+              <td style="padding: 12px; color: #64748b;">현장 토공·골조 중지</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 12px; font-weight: 600;">강풍</td>
+              <td style="padding: 12px;">근무시간 중 순간/시간 풍속 <strong>15.0m/s 이상</strong> 발생 시</td>
+              <td style="padding: 12px;">해당 <strong>반일(오전/오후) 작업 중지</strong></td>
+              <td style="padding: 12px; color: #64748b;">크레인·고소작업 제한</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 12px; font-weight: 600;">혹서기 (폭염)</td>
+              <td style="padding: 12px;">
+                • 일 최고 체감온도(Tw) <strong>35.0°C 이상</strong>: 14시~17시 중지 (경량 손실)<br>
+                • 일 최고 체감온도(Tw) <strong>38.0°C 이상</strong>: 당일 전일 작업 중지 (중증 손실)
+              </td>
+              <td style="padding: 12px;">3~4시간 또는 전일 중지</td>
+              <td style="padding: 12px; color: #64748b;">여름철 습구체감온도 공식 적용</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 12px; font-weight: 600;">혹한기 (한파)</td>
+              <td style="padding: 12px;">당일 일 최저기온 <strong>-12.0°C 이하</strong> 발생 시</td>
+              <td style="padding: 12px;">당일 <strong>전일 작업 중지</strong></td>
+              <td style="padding: 12px; color: #64748b;">콘크리트 동결·토공 중지</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px; font-weight: 600;">폭설 (적설)</td>
+              <td style="padding: 12px;">당일 일 최고 적설량 <strong>5.0cm 이상</strong> 관측 시</td>
+              <td style="padding: 12px;">당일 <strong>전일 작업 중지</strong></td>
+              <td style="padding: 12px; color: #64748b;">제설 및 진입로 차단</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </div>
 
   <script src="js/sw-catalog.js"></script>
   <script src="js/calc.js"></script>
