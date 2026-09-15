@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구간별 관측지점 · WeatherWorks</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app-shell">
+  <aside id="sidebar"></aside>
+  <div class="main">
+    <header id="topbar"></header>
+    <main id="page-content">
+      <div class="page-head">
+        <h2>공사 구간별 관측지점 매핑</h2>
+        <div class="desc">전국 4,418개 행정구역(읍·면·동) 기반 최인접 기상관측소 매핑 정보 및 직선거리를 조회합니다.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head flex-between">
+          <h3>기상관측소 매핑 현황</h3>
+          <span class="hint" id="total-count"></span>
+        </div>
+
+        <!-- 주소 및 지점 검색 입력창 -->
+        <div style="margin-bottom: 16px; display:flex; gap:10px;">
+          <input type="text" id="searchInput" placeholder="현장 주소(시군구, 읍·면·동) 또는 관측지점명 검색..." style="max-width:360px; padding:9px 14px; border:1px solid var(--line); border-radius:6px; font-size:14px;" oninput="filterData()">
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>현장 위치 (행정구역 주소)</th>
+              <th class="num">매핑 지점코드</th>
+              <th>매핑 관측지점명</th>
+              <th>관측소 실제 주소</th>
+              <th class="num">직선거리(km)</th>
+              <th>데이터 신뢰도</th>
+            </tr>
+          </thead>
+          <tbody id="station-rows"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/seed.js"></script>
+<!-- 4,418개 매핑 데이터가 담긴 파일 로드 -->
+<script src="js/stations-data.js"></script>
+<script src="js/util.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/nav.js"></script>
+<script>
+// stations-data.js 에서 정의한 전역 배열 불러오기
+let currentList = typeof stationMappingData !== 'undefined' ? stationMappingData : [];
+
+function renderTable(list) {
+  const tbody = document.getElementById('station-rows');
+  const countEl = document.getElementById('total-count');
+  
+  if (countEl) {
+    countEl.textContent = `총 ${list.length.toLocaleString()}개 구간 매핑`;
+  }
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty" style="text-align:center; padding:30px; color:#888;">일치하는 검색 결과가 없습니다.</div></td></tr>';
+    return;
+  }
+
+  // 데이터가 4,418개로 방대하므로 초기에는 상위 100건만 렌더링 (속도 저하 방지)
+  const displayList = list.slice(0, 100);
+
+  tbody.innerHTML = displayList.map(item => {
+    // 거리별 상태 배지 설정
+    const badge = item.dist <= 5.0
+      ? '<span style="background:#e6f4ea; color:#137333; padding:3px 8px; border-radius:4px; font-weight:600; font-size:12px;">최적 (5km 이내)</span>'
+      : item.dist <= 10.0
+      ? '<span style="background:#fef7e0; color:#b06000; padding:3px 8px; border-radius:4px; font-weight:600; font-size:12px;">보통 (10km 이내)</span>'
+      : '<span style="background:#fce8e6; color:#c5221f; padding:3px 8px; border-radius:4px; font-weight:600; font-size:12px;">원거리 (주의)</span>';
+
+    return `<tr>
+      <td><strong>${item.address}</strong></td>
+      <td class="num mono">${item.code}</td>
+      <td><strong>${item.name}</strong></td>
+      <td class="muted" style="font-size:12px;">${item.stationAddr}</td>
+      <td class="num mono"><strong>${item.dist.toFixed(2)}</strong> km</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('') + (list.length > 100 ? `<tr><td colspan="6" style="text-align:center; color:#666; font-size:12px; background:#f9f9f9; padding:10px;">(상위 100건을 표시 중입니다. 상세 검색은 상단 검색창을 활용하세요.)</td></tr>` : '');
+}
+
+// 실시간 필터링 (주소명, 지점명, 지점코드 검색 지원)
+function filterData() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) {
+    renderTable(currentList);
+    return;
+  }
+  const filtered = currentList.filter(x => 
+    x.address.toLowerCase().includes(q) || 
+    x.name.toLowerCase().includes(q) || 
+    String(x.code).includes(q)
+  );
+  renderTable(filtered);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('구간별 관측지점', {showProjectSelect: false});
+  renderTable(currentList);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>기상데이터 품질관리 · WeatherWorks</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app-shell">
+  <aside id="sidebar"></aside>
+  <div class="main">
+    <header id="topbar"></header>
+    <main id="page-content">
+      <div class="page-head">
+        <h2>기상데이터 품질관리</h2>
+        <div class="desc">기상 관측 자료를 업로드하고, 각 일자별 데이터를 <b>정상 / 결측 / 보정 / 이상치의심</b>으로 자동 분류하여 관리합니다. 수정 이력은 자동으로 기록됩니다.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>엑셀/CSV 업로드</h3></div>
+        <div class="notice">
+          필요한 열: <b>날짜</b>(YYYY-MM-DD), <b>관측지점</b>(구간별 관측지점 페이지에 등록한 지점명), <b>강수량</b>(mm), <b>풍속</b>(m/s), <b>적설</b>(cm), <b>최고기온</b>(℃), <b>최저기온</b>(℃).
+          열 이름이 다르면 업로드 후 매칭 화면에서 연결할 수 있습니다.
+        </div>
+        <div class="field-row">
+          <div class="field"><label>파일 선택</label><input type="file" id="file-input" accept=".csv,.xlsx,.xls"></div>
+          <div class="field" style="align-self:flex-end;"><button class="btn" onclick="downloadSample()">샘플 CSV 다운로드</button></div>
+        </div>
+        <div id="mapping-area"></div>
+      </div>
+
+      <div class="grid grid-4">
+        <div class="stat-card"><div class="label">정상</div><div class="value" id="v-normal">-</div></div>
+        <div class="stat-card"><div class="label">결측</div><div class="value" id="v-missing">-</div></div>
+        <div class="stat-card"><div class="label">보정 완료</div><div class="value" id="v-corrected">-</div></div>
+        <div class="stat-card"><div class="label">이상치의심</div><div class="value" id="v-outlier">-</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head flex-between">
+          <h3>일자별 데이터 품질 현황</h3>
+          <div class="row gap-8">
+            <select id="filter-station"></select>
+            <select id="filter-month"></select>
+            <select id="filter-status">
+              <option value="">전체 상태</option>
+              <option value="normal">정상</option>
+              <option value="missing">결측</option>
+              <option value="corrected">보정 완료</option>
+              <option value="outlier">이상치의심</option>
+            </select>
+            <button class="btn btn-sm" onclick="exportCurrent()">CSV 내보내기</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>날짜</th><th>관측지점</th><th class="num">강수량(mm)</th><th class="num">풍속(m/s)</th><th class="num">적설(cm)</th><th>상태</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>수정 이력</h3></div>
+        <table>
+          <thead><tr><th>수정일시</th><th>날짜</th><th>항목</th><th>이전 값</th><th>수정 값</th></tr></thead>
+          <tbody id="log-rows"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="js/db.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/util.js"></script>
+<script src="js/calc.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/sw-catalog.js"></script>
+<script>
+/* ---------- 업로드 (구 기상 데이터 조회 기능 통합) ---------- */
+const COLMAP = {
+  '날짜':'date', 'date':'date',
+  '관측지점':'station', 'station':'station',
+  '강수량':'rainMm', '강수량(mm)':'rainMm', 'rainMm':'rainMm',
+  '풍속':'windMs', '풍속(m/s)':'windMs', 'windMs':'windMs',
+  '적설':'snowCm', '적설(cm)':'snowCm', 'snowCm':'snowCm',
+  '최고기온':'tempMaxC', '최고기온(℃)':'tempMaxC', 'tempMaxC':'tempMaxC',
+  '최저기온':'tempMinC', '최저기온(℃)':'tempMinC', 'tempMinC':'tempMinC',
+};
+
+function downloadSample(){
+  const headers = ['날짜','관측지점','강수량','풍속','적설','최고기온','최저기온'];
+  const rows = [
+    {'날짜':'2026-04-01','관측지점':'현장 인근 관측소 A','강수량':0,'풍속':3,'적설':0,'최고기온':17,'최저기온':6},
+    {'날짜':'2026-04-02','관측지점':'현장 인근 관측소 A','강수량':12,'풍속':9,'적설':0,'최고기온':14,'최저기온':8},
+  ];
+  downloadText('weatherworks_기상데이터_샘플.csv', toCSV(headers, rows), 'text/csv;charset=utf-8');
+}
+
+let pendingParse = null;
+
+document.getElementById('file-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const parsed = await readSpreadsheetFile(file);
+    pendingParse = parsed;
+    renderMapping(parsed.headers);
+  }catch(err){
+    alert('파일을 읽는 중 오류가 발생했습니다: ' + err.message);
+  }
+});
+
+function renderMapping(headers){
+  const targets = [
+    {key:'date', label:'날짜'}, {key:'station', label:'관측지점'},
+    {key:'rainMm', label:'강수량(mm)'}, {key:'windMs', label:'풍속(m/s)'},
+    {key:'snowCm', label:'적설(cm)'}, {key:'tempMaxC', label:'최고기온(℃)'}, {key:'tempMinC', label:'최저기온(℃)'},
+  ];
+  const area = document.getElementById('mapping-area');
+  area.innerHTML = `
+    <div class="hr"></div>
+    <div class="panel-head"><h3>열 매칭 확인</h3><span class="hint">${headers.length}개 열 인식됨 · ${pendingParse.rows.length}행</span></div>
+    <div class="grid grid-3">
+      ${targets.map(t=>{
+        const guess = headers.find(h=> COLMAP[h]===t.key) || '';
+        return `<div class="field"><label>${t.label}</label>
+          <select data-target="${t.key}" class="map-select">
+            <option value="">-- 선택 안 함 --</option>
+            ${headers.map(h=>`<option value="${h}" ${h===guess?'selected':''}>${h}</option>`).join('')}
+          </select></div>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-primary" onclick="commitImport()">이 매칭으로 가져오기</button>
+  `;
+}
+
+function commitImport(){
+  const db = loadDB();
+  const map = {};
+  document.querySelectorAll('.map-select').forEach(sel=>{
+    if(sel.value) map[sel.dataset.target] = sel.value;
+  });
+  if(!map.date || !map.station){ alert('날짜와 관측지점 열은 반드시 선택해야 합니다.'); return; }
+
+  let imported = 0, skipped = 0;
+  pendingParse.rows.forEach(r=>{
+    const stationName = String(r[map.station]||'').trim();
+    const station = db.stations.find(s=>s.name===stationName);
+    const date = String(r[map.date]||'').trim();
+    if(!station || !date){ skipped++; return; }
+    const rec = {
+      stationId: station.id, date,
+      rainMm: Number(r[map.rainMm])||0,
+      windMs: Number(r[map.windMs])||0,
+      snowCm: Number(r[map.snowCm])||0,
+      tempMaxC: map.tempMaxC ? Number(r[map.tempMaxC])||0 : 0,
+      tempMinC: map.tempMinC ? Number(r[map.tempMinC])||0 : 0,
+    };
+    const existingIdx = db.weatherRecords.findIndex(w=>w.stationId===rec.stationId && w.date===rec.date);
+    if(existingIdx>=0) db.weatherRecords[existingIdx] = rec; else db.weatherRecords.push(rec);
+    imported++;
+  });
+  saveDB(db);
+  document.getElementById('mapping-area').innerHTML = '';
+  document.getElementById('file-input').value = '';
+  alert(`${imported}건을 가져왔습니다. (매칭 실패 ${skipped}건)`);
+  populateFilters();
+  render();
+}
+
+/* ---------- 품질 분류 (정상/결측/보정/이상치의심) ---------- */
+function isOutlier(w){
+  return w.rainMm > 200 || w.windMs > 40 || w.snowCm > 50;
+}
+
+function isCorrected(db, stationId, date){
+  return db.qcLog.some(l=> l.stationId===stationId && l.date===date);
+}
+
+function editField(stationId, date, field, current){
+  const val = prompt(`${field} 값 수정 (${date})`, current);
+  if(val === null || val === '' || isNaN(Number(val))) return;
+  const db = loadDB();
+  const rec = db.weatherRecords.find(w=>w.stationId===stationId && w.date===date);
+  if(!rec) return;
+  const oldVal = rec[field];
+  rec[field] = Number(val);
+  db.qcLog.push({id: uid('qc'), date, stationId, field, oldValue: oldVal, newValue: Number(val), editedAt: new Date().toISOString()});
+  saveDB(db);
+  render();
+}
+
+function populateFilters(){
+  const db = loadDB();
+  const stSel = document.getElementById('filter-station');
+  const prevSt = stSel.value;
+  stSel.innerHTML = '<option value="">전체 관측지점</option>' + db.stations.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  stSel.value = prevSt;
+  const months = [...new Set(db.weatherRecords.map(w=>monthLabel(w.date)))].sort();
+  const moSel = document.getElementById('filter-month');
+  const prevMo = moSel.value;
+  moSel.innerHTML = '<option value="">전체 기간</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  moSel.value = prevMo;
+}
+
+// 관측지점 + 기간을 선택했을 때, 그 구간 내 실제 자료가 없는 날짜를 "결측"으로 계산
+function buildRowsWithMissing(db){
+  const stId = document.getElementById('filter-station').value;
+  const moFilter = document.getElementById('filter-month').value;
+
+  let records = [...db.weatherRecords];
+  if(stId) records = records.filter(w=>w.stationId===stId);
+  if(moFilter) records = records.filter(w=>monthLabel(w.date)===moFilter);
+
+  const rows = records.map(w=>{
+    let status = 'normal';
+    if(isCorrected(db, w.stationId, w.date)) status = 'corrected';
+    else if(isOutlier(w)) status = 'outlier';
+    return {...w, status, missing:false};
+  });
+
+  // 결측 계산: 특정 관측지점 + 특정 월을 모두 지정한 경우에만, 그 달의 빠진 날짜를 결측으로 표시
+  if(stId && moFilter){
+    const [y,m] = moFilter.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const existingDates = new Set(records.map(w=>w.date));
+    for(let d=1; d<=daysInMonth; d++){
+      const dateStr = `${y}-${pad2(m)}-${pad2(d)}`;
+      if(dateStr > fmtDate(new Date())) continue; // 미래 날짜는 결측으로 보지 않음
+      if(!existingDates.has(dateStr)){
+        rows.push({stationId: stId, date: dateStr, rainMm:null, windMs:null, snowCm:null, status:'missing', missing:true});
+      }
+    }
+  }
+
+  rows.sort((a,b)=> b.date.localeCompare(a.date));
+  return rows;
+}
+
+const STATUS_LABEL = {
+  normal: '<span class="tag tag-green">정상</span>',
+  missing: '<span class="tag tag-mute">결측</span>',
+  corrected: '<span class="tag tag-amber">보정 완료</span>',
+  outlier: '<span class="tag tag-red">이상치의심</span>',
+};
+
+function render(){
+  const db = loadDB();
+  const statusFilter = document.getElementById('filter-status').value;
+  let rows = buildRowsWithMissing(db);
+  if(statusFilter) rows = rows.filter(r=>r.status===statusFilter);
+
+  document.getElementById('v-normal').innerHTML = rows.filter(r=>r.status==='normal').length + '<small> 건</small>';
+  document.getElementById('v-missing').innerHTML = rows.filter(r=>r.status==='missing').length + '<small> 건</small>';
+  document.getElementById('v-corrected').innerHTML = rows.filter(r=>r.status==='corrected').length + '<small> 건</small>';
+  document.getElementById('v-outlier').innerHTML = rows.filter(r=>r.status==='outlier').length + '<small> 건</small>';
+
+  document.getElementById('rows').innerHTML = rows.slice(0,200).map(w=>{
+    const st = db.stations.find(s=>s.id===w.stationId);
+    if(w.missing){
+      return `<tr style="background:var(--surface-sunken);">
+        <td class="mono">${w.date}</td><td>${st?st.name:'-'}</td>
+        <td class="num mono">-</td><td class="num mono">-</td><td class="num mono">-</td>
+        <td>${STATUS_LABEL.missing}</td><td></td>
+      </tr>`;
+    }
+    return `<tr>
+      <td class="mono">${w.date}</td><td>${st?st.name:'-'}</td>
+      <td class="num mono" style="${w.rainMm>200?'color:var(--red);font-weight:600':''}">${w.rainMm}</td>
+      <td class="num mono" style="${w.windMs>40?'color:var(--red);font-weight:600':''}">${w.windMs}</td>
+      <td class="num mono" style="${w.snowCm>50?'color:var(--red);font-weight:600':''}">${w.snowCm}</td>
+      <td>${STATUS_LABEL[w.status]}</td>
+      <td class="row gap-8">
+        <button class="btn btn-sm" onclick="editField('${w.stationId}','${w.date}','rainMm',${w.rainMm})">강수 수정</button>
+        <button class="btn btn-sm" onclick="editField('${w.stationId}','${w.date}','windMs',${w.windMs})">풍속 수정</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7"><div class="empty">표시할 데이터가 없습니다.</div></td></tr>';
+
+  document.getElementById('log-rows').innerHTML = [...db.qcLog].reverse().slice(0,50).map(l=>`<tr>
+    <td class="mono" style="font-size:11.5px;">${new Date(l.editedAt).toLocaleString('ko-KR')}</td>
+    <td class="mono">${l.date}</td><td>${l.field}</td>
+    <td class="num mono">${l.oldValue}</td><td class="num mono">${l.newValue}</td>
+  </tr>`).join('') || '<tr><td colspan="5"><div class="empty">수정 이력이 없습니다.</div></td></tr>';
+}
+
+function exportCurrent(){
+  const db = loadDB();
+  const statusFilter = document.getElementById('filter-status').value;
+  let rows = buildRowsWithMissing(db);
+  if(statusFilter) rows = rows.filter(r=>r.status===statusFilter);
+  const headers = ['날짜','관측지점','강수량','풍속','적설','상태'];
+  const labelMap = {normal:'정상',missing:'결측',corrected:'보정 완료',outlier:'이상치의심'};
+  const out = rows.map(w=>{
+    const st = db.stations.find(s=>s.id===w.stationId);
+    return {'날짜':w.date,'관측지점':st?st.name:'','강수량':w.rainMm ?? '','풍속':w.windMs ?? '','적설':w.snowCm ?? '','상태':labelMap[w.status]};
+  });
+  downloadText('weatherworks_기상데이터_품질.csv', toCSV(headers, out), 'text/csv;charset=utf-8');
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  renderTopbar('기상데이터 품질관리');
+  populateFilters();
+  render();
+  document.getElementById('filter-station').addEventListener('change', render);
+  document.getElementById('filter-month').addEventListener('change', render);
+  document.getElementById('filter-status').addEventListener('change', render);
+});
+</script>
+</body>
+</html>
